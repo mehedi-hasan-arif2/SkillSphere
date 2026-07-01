@@ -3,32 +3,45 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { useSession, authClient } from "@/lib/auth-client";
 
 export default function UpdateProfilePage() {
   const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
+
   const [formData, setFormData] = useState({ name: "", photoUrl: "" });
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("user");
-    if (loggedInUser) {
-      const parsed = JSON.parse(loggedInUser);
-      setFormData({ name: parsed.name, photoUrl: parsed.photoUrl || "" });
+    if (user) {
+      setFormData({ name: user.name || "", photoUrl: user.image || "" });
     }
-  }, []);
+  }, [user]);
 
-  const handleUpdate = (e) => {
+  const handleUpdate = async (e) => {
     e.preventDefault();
-    const loggedInUser = localStorage.getItem("user");
-    if (loggedInUser) {
-      const parsed = JSON.parse(loggedInUser);
-      const updatedUser = { ...parsed, name: formData.name, photoUrl: formData.photoUrl };
-      
-      /* Save to Local DB and Sync across app */
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+    const { error } = await authClient.updateUser({
+      name: formData.name,
+      image: formData.photoUrl,
+    });
+
+    if (error) {
+      toast.error(error.message || "Update failed");
+    } else {
       toast.success("Profile Updated Successfully!");
       router.push('/my-profile');
+      router.refresh();
     }
   };
+
+  if (isPending) {
+    return (
+      <main className="min-h-screen bg-[#0b0f19] text-white pt-24 text-center text-sm">
+        Loading...
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-6 pt-24">

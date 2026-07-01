@@ -1,40 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { useSession, signOut } from "@/lib/auth-client";
 
 export default function Navbar() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
 
-  /* Sync Auth State */
-  useEffect(() => {
-    const checkUser = () => {
-      const loggedInUser = localStorage.getItem("user");
-      if (loggedInUser) {
-        setUser(JSON.parse(loggedInUser));
-      } else {
-        setUser(null);
-      }
-    };
-
-    checkUser();
-    window.addEventListener("storage", checkUser);
-    const interval = setInterval(checkUser, 1000);
-
-    return () => {
-      window.removeEventListener("storage", checkUser);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    document.cookie = "isLoggedIn=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    setUser(null);
+  const handleLogout = async () => {
+    await signOut();
+    toast.success("Logged out successfully!");
     router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -73,7 +54,6 @@ export default function Navbar() {
               className="relative group hover:text-white transition whitespace-nowrap"
             >
               {item}
-              {/* animated underline */}
               <span className="absolute left-0 -bottom-1 sm:-bottom-2 w-0 h-[2px] bg-gradient-to-r from-cyan-300 via-blue-400 to-violet-500 group-hover:w-full transition-all duration-300"></span>
             </Link>
           ))}
@@ -81,7 +61,7 @@ export default function Navbar() {
 
         {/* ACTIONS */}
         <div className="flex items-center gap-1.5 sm:gap-4 flex-shrink-0">
-          {!user ? (
+          {isPending ? null : !user ? (
             <>
               <Link
                 href="/login"
@@ -98,15 +78,16 @@ export default function Navbar() {
             </>
           ) : (
             <div className="flex items-center gap-2 sm:gap-4">
-              <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-cyan-400/30 bg-[#070A12]">
-                <img
-                  src={
-                    user.photoUrl ||
-                    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde"
-                  }
-                  alt="User Avatar"
-                  className="object-cover w-full h-full"
-                />
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-cyan-400/30 bg-[#070A12] flex items-center justify-center">
+                {user.image ? (
+                  <img
+                    src={user.image}
+                    alt="User Avatar"
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <User className="text-gray-400 w-5 h-5 sm:w-6 sm:h-6" />
+                )}
               </div>
               <button
                 onClick={handleLogout}
@@ -122,59 +103,28 @@ export default function Navbar() {
       {/* ANIMATIONS */}
       <style jsx>{`
         @keyframes flow {
-          0% {
-            background-position: 0% 50%;
-          }
-          100% {
-            background-position: 200% 50%;
-          }
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
         }
         .animate-flow {
           animation: flow 6s linear infinite;
           background-size: 200% 200%;
         }
         @keyframes blob1 {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(100px, 50px) scale(1.2);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          50% { transform: translate(100px, 50px) scale(1.2); }
         }
         @keyframes blob2 {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(-80px, 60px) scale(1.3);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          50% { transform: translate(-80px, 60px) scale(1.3); }
         }
         @keyframes blob3 {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          50% {
-            transform: translate(60px, -40px) scale(1.2);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          50% { transform: translate(60px, -40px) scale(1.2); }
         }
-        .animate-blob1 {
-          animation: blob1 10s ease-in-out infinite;
-        }
-        .animate-blob2 {
-          animation: blob2 12s ease-in-out infinite;
-        }
-        .animate-blob3 {
-          animation: blob3 14s ease-in-out infinite;
-        }
+        .animate-blob1 { animation: blob1 10s ease-in-out infinite; }
+        .animate-blob2 { animation: blob2 12s ease-in-out infinite; }
+        .animate-blob3 { animation: blob3 14s ease-in-out infinite; }
       `}</style>
     </nav>
   );

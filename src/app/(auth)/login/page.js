@@ -4,52 +4,44 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import { signIn } from "@/lib/auth-client";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const callbackUrl = searchParams.get("callbackUrl") || "/";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const registeredUser = JSON.parse(localStorage.getItem("registered_user"));
+    setError("");
+    setLoading(true);
 
-    if (registeredUser && registeredUser.email === formData.email && registeredUser.password === formData.password) {
-      localStorage.setItem("user", JSON.stringify(registeredUser));
-      document.cookie = "isLoggedIn=true; path=/";
-      toast.success(`Welcome back, ${registeredUser.name}!`);
-      router.push(callbackUrl);
-    } else if (formData.email === "admin@test.com" && formData.password === "123456") {
-      /* Start of Demo Auth Logic */
-      const demoUser = { 
-        name: "Demo Student", 
-        email: "admin@test.com", 
-        photoUrl: "https://www.svgrepo.com/show/507442/user-circle.svg" 
-      };
-      localStorage.setItem("user", JSON.stringify(demoUser));
-      document.cookie = "isLoggedIn=true; path=/";
-      toast.success("Logged in successfully as Demo Admin!");
-      router.push(callbackUrl);
+    const { error: authError } = await signIn.email({
+      email: formData.email,
+      password: formData.password,
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      setError(authError.message || "Invalid email or password.");
+      toast.error(authError.message || "Login Failed!");
     } else {
-      setError("Invalid email or password. (Demo Hint: admin@test.com / 123456)");
-      toast.error("Login failed! Check your credentials.");
+      toast.success("Login Successful!");
+      router.push(callbackUrl);
+      router.refresh();
     }
   };
 
-  const handleGoogleLogin = () => {
-    /* Login via Google  */
-    const googleUser = { 
-      name: "Google Explorer", 
-      email: "google@test.com", 
-      photoUrl: "https://www.svgrepo.com/show/507442/user-circle.svg" 
-    };
-    localStorage.setItem("user", JSON.stringify(googleUser));
-    document.cookie = "isLoggedIn=true; path=/";
-    toast.success("Successfully authenticated with Google!");
-    router.push(callbackUrl);
+  const handleGoogleLogin = async () => {
+    await signIn.social({
+      provider: "google",
+      callbackURL: callbackUrl,
+    });
   };
 
   return (
@@ -65,13 +57,15 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Email Address</label>
-            <input type="email" required onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-[#0b0f19] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500" placeholder="admin@test.com" />
+            <input type="email" required onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-[#0b0f19] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500" placeholder="you@example.com" />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Password</label>
-            <input type="password" required onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-[#0b0f19] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500" placeholder="123456" />
+            <input type="password" required onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-[#0b0f19] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500" placeholder="••••••••" />
           </div>
-          <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-600 to-violet-600 font-bold rounded-xl text-white transition hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]">Login</button>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-gradient-to-r from-cyan-600 to-violet-600 font-bold rounded-xl text-white transition hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:opacity-50">
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </form>
 
         <div className="relative flex items-center justify-center my-4">
@@ -80,7 +74,7 @@ export default function LoginPage() {
         </div>
 
         <button onClick={handleGoogleLogin} className="w-full py-3 bg-[#0b0f19] border border-gray-800 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-900 transition text-sm">
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" /> Sign in with Google
+          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" />Sign in with Google
         </button>
 
         <p className="text-center text-sm text-gray-400">New to SkillSphere? <Link href="/register" className="text-cyan-400 hover:underline">Register</Link></p>

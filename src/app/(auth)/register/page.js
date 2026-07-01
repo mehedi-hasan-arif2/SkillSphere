@@ -4,36 +4,49 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import { signUp, signIn } from "@/lib/auth-client";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ name: "", email: "", photoUrl: "", password: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     if (!formData.name || !formData.email || !formData.password) {
       setError("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
-    
-    /* Save account details to local database */
-    localStorage.setItem("registered_user", JSON.stringify(formData));
-    toast.success("Registration Successful! Please login.");
-    router.push("/login");
+
+    setLoading(true);
+
+    const { error: authError } = await signUp.email({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      image: formData.photoUrl || undefined,
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      setError(authError.message || "Registration failed.");
+      toast.error(authError.message || "Registration Failed!");
+    } else {
+      toast.success("Account created successfully!");
+      router.push("/login");
+    }
   };
 
-  const handleGoogleLogin = () => {
-    /* Login via Google with clean profile icon placeholder */
-    const googleUser = { 
-      name: "Google Explorer", 
-      email: "google@test.com", 
-      photoUrl: "https://www.svgrepo.com/show/507442/user-circle.svg" 
-    };
-    localStorage.setItem("user", JSON.stringify(googleUser));
-    document.cookie = "isLoggedIn=true; path=/";
-    toast.success("Logged in with Google!");
-    router.push("/");
+  const handleGoogleRegister = async () => {
+    await signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    });
   };
 
   return (
@@ -63,7 +76,9 @@ export default function RegisterPage() {
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Password</label>
             <input type="password" required onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-[#0b0f19] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500" placeholder="••••••••" />
           </div>
-          <button type="submit" className="w-full py-3 bg-gradient-to-r from-cyan-600 to-violet-600 font-bold rounded-xl text-white transition hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]">Register</button>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-gradient-to-r from-cyan-600 to-violet-600 font-bold rounded-xl text-white transition hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:opacity-50">
+            {loading ? "Creating account..." : "Register"}
+          </button>
         </form>
 
         <div className="relative flex items-center justify-center my-4">
@@ -71,7 +86,7 @@ export default function RegisterPage() {
           <span className="relative bg-[#111625] px-3 text-xs text-gray-500 uppercase tracking-wider">Or continue with</span>
         </div>
 
-        <button onClick={handleGoogleLogin} className="w-full py-3 bg-[#0b0f19] border border-gray-800 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-900 transition text-sm">
+        <button onClick={handleGoogleRegister} className="w-full py-3 bg-[#0b0f19] border border-gray-800 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-900 transition text-sm">
           <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" /> Sign up with Google
         </button>
 
